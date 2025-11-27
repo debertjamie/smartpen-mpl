@@ -9,6 +9,9 @@ export default function SmartpenStore() {
   const [cart, setCart] = useState([]);
   const [selected, setSelected] = useState(null);
   const [query, setQuery] = useState("");
+  const [showCart, setShowCart] = useState(false);
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState("");
 
   const products = [
     {
@@ -33,8 +36,57 @@ export default function SmartpenStore() {
   );
 
   function addToCart(product) {
-    setCart((c) => [...c, product]);
+    setCart((c) => {
+      const existingItem = c.find(item => item.id === product.id);
+      if (existingItem) {
+        return c.map(item => 
+          item.id === product.id 
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        );
+      } else {
+        return [...c, { ...product, quantity: 1 }];
+      }
+    });
     alert(`${product.name} ditambahkan ke keranjang`);
+  }
+
+  function removeFromCart(productId) {
+    setCart((c) => c.filter(item => item.id !== productId));
+  }
+
+  function updateQuantity(productId, newQuantity) {
+    if (newQuantity <= 0) {
+      removeFromCart(productId);
+      return;
+    }
+    setCart((c) => 
+      c.map(item => 
+        item.id === productId 
+          ? { ...item, quantity: newQuantity }
+          : item
+      )
+    );
+  }
+
+  function getTotalPrice() {
+    return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+  }
+
+  function getTotalItems() {
+    return cart.reduce((total, item) => total + item.quantity, 0);
+  }
+
+  function handleCheckout() {
+    if (!selectedPayment) {
+      alert('Silakan pilih metode pembayaran');
+      return;
+    }
+    alert(`Checkout berhasil dengan ${selectedPayment}! Total: Rp ${formatIDR(getTotalPrice())}`);
+    setCart([]);
+    setShowCheckout(false);
+    setShowCart(false);
+    setSelectedPayment('');
   }
 
   function formatIDR(n) {
@@ -68,15 +120,15 @@ export default function SmartpenStore() {
               </div>
 
               <button
-                onClick={() => alert('Fitur checkout belum aktif di demo')}
+                onClick={() => setShowCart(true)}
                 className="relative inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-md shadow"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4" />
                 </svg>
-                Beli Sekarang
+                Keranjang
                 <span className="ml-2 bg-white text-indigo-600 px-2 py-0.5 rounded-full text-xs font-semibold">
-                  {cart.length}
+                  {getTotalItems()}
                 </span>
               </button>
             </div>
@@ -244,6 +296,200 @@ export default function SmartpenStore() {
 
               <div className="w-48 flex-shrink-0">
                 <img src={selected.img} alt={selected.name} className="rounded-lg object-cover w-full h-48" />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SHOPPING CART MODAL */}
+      {showCart && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold">Keranjang Belanja</h2>
+                <button 
+                  onClick={() => setShowCart(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {cart.length === 0 ? (
+                <div className="text-center py-12">
+                  <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4" />
+                  </svg>
+                  <p className="text-gray-500">Keranjang Anda kosong</p>
+                  <button 
+                    onClick={() => setShowCart(false)}
+                    className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-md"
+                  >
+                    Mulai Belanja
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  <div className="space-y-4 mb-6">
+                    {cart.map((item) => (
+                      <div key={item.id} className="flex items-center gap-4 p-4 border rounded-lg">
+                        <img src={item.img} alt={item.name} className="w-16 h-16 object-cover rounded-lg" />
+                        
+                        <div className="flex-1">
+                          <h3 className="font-semibold">{item.name}</h3>
+                          <p className="text-sm text-gray-600">{item.short}</p>
+                          <div className="text-lg font-bold text-indigo-600">Rp {formatIDR(item.price)}</div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-2">
+                            <button 
+                              onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                              className="w-8 h-8 flex items-center justify-center border rounded-md hover:bg-gray-50"
+                            >
+                              -
+                            </button>
+                            <span className="w-8 text-center">{item.quantity}</span>
+                            <button 
+                              onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                              className="w-8 h-8 flex items-center justify-center border rounded-md hover:bg-gray-50"
+                            >
+                              +
+                            </button>
+                          </div>
+                          
+                          <div className="text-lg font-bold min-w-[120px] text-right">
+                            Rp {formatIDR(item.price * item.quantity)}
+                          </div>
+                          
+                          <button 
+                            onClick={() => removeFromCart(item.id)}
+                            className="text-red-500 hover:text-red-700 ml-2"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="border-t pt-6">
+                    <div className="flex justify-between items-center mb-4">
+                      <div className="text-lg font-semibold">Total ({getTotalItems()} item{getTotalItems() > 1 ? 's' : ''})</div>
+                      <div className="text-2xl font-bold text-indigo-600">Rp {formatIDR(getTotalPrice())}</div>
+                    </div>
+                    
+                    <div className="flex gap-3">
+                      <button 
+                        onClick={() => setShowCart(false)}
+                        className="flex-1 px-6 py-3 border border-gray-300 rounded-md hover:bg-gray-50"
+                      >
+                        Lanjut Belanja
+                      </button>
+                      <button 
+                        onClick={() => setShowCheckout(true)}
+                        className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                      >
+                        Checkout
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CHECKOUT MODAL */}
+      {showCheckout && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold">Checkout</h2>
+                <button 
+                  onClick={() => setShowCheckout(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Order Summary */}
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-4">Ringkasan Pesanan</h3>
+                <div className="space-y-3 bg-gray-50 p-4 rounded-lg">
+                  {cart.map((item) => (
+                    <div key={item.id} className="flex justify-between items-center">
+                      <div className="flex items-center gap-3">
+                        <img src={item.img} alt={item.name} className="w-12 h-12 object-cover rounded" />
+                        <div>
+                          <div className="font-medium">{item.name}</div>
+                          <div className="text-sm text-gray-600">Qty: {item.quantity}</div>
+                        </div>
+                      </div>
+                      <div className="font-semibold">Rp {formatIDR(item.price * item.quantity)}</div>
+                    </div>
+                  ))}
+                  <div className="border-t pt-3 flex justify-between items-center font-bold text-lg">
+                    <span>Total</span>
+                    <span className="text-indigo-600">Rp {formatIDR(getTotalPrice())}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment Methods */}
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-4">Metode Pembayaran</h3>
+                <div className="space-y-3">
+                  {[
+                    { id: 'ewallet', label: 'E-Wallet / Virtual Account', desc: 'OVO, GoPay, Dana, BCA Virtual Account', icon: '💳' },
+                    { id: 'qris', label: 'QRIS', desc: 'Scan QR code untuk pembayaran instan', icon: '📱' },
+                    { id: 'paypal', label: 'PayPal / Credit Card', desc: 'Visa, Mastercard, PayPal', icon: '💰' }
+                  ].map((method) => (
+                    <label key={method.id} className="flex items-center gap-4 p-4 border rounded-lg cursor-pointer hover:bg-gray-50">
+                      <input 
+                        type="radio" 
+                        name="payment" 
+                        value={method.id}
+                        checked={selectedPayment === method.id}
+                        onChange={(e) => setSelectedPayment(e.target.value)}
+                        className="text-indigo-600"
+                      />
+                      <div className="text-2xl">{method.icon}</div>
+                      <div className="flex-1">
+                        <div className="font-semibold">{method.label}</div>
+                        <div className="text-sm text-gray-600">{method.desc}</div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setShowCheckout(false)}
+                  className="flex-1 px-6 py-3 border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  Kembali
+                </button>
+                <button 
+                  onClick={handleCheckout}
+                  disabled={!selectedPayment}
+                  className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                >
+                  Bayar Sekarang
+                </button>
               </div>
             </div>
           </div>
